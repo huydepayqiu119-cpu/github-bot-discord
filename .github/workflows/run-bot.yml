@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm install --legacy-peer-deps || npm install --force
+      - run: npm install
 
       - name: Start bot and stream logs
         run: |
@@ -38,10 +38,13 @@ jobs:
           node bot.js > /tmp/bot.log 2>&1 &
           BOT_PID=$!
 
-          sleep 10
+          sleep 30
 
           if ! kill -0 $BOT_PID 2>/dev/null; then
-            tg_json "❌ <b>Bot failed to start!</b>&#10;<code>$(tail -30 /tmp/bot.log)</code>"
+            echo "=== BOT CRASHED - FULL LOG ==="
+            cat /tmp/bot.log
+            echo "=== END LOG ==="
+            tg_json "❌ <b>Bot failed to start!</b>&#10;<code>$(tail -50 /tmp/bot.log | head -c 3500)</code>"
             exit 1
           fi
 
@@ -57,6 +60,13 @@ jobs:
           while true; do
             sleep 10
 
+            if ! kill -0 $BOT_PID 2>/dev/null; then
+              echo "=== BOT DIED - LAST LOG ==="
+              tail -30 /tmp/bot.log
+              tg_json "💀 <b>Bot process died!</b>&#10;<code>$(tail -30 /tmp/bot.log | head -c 3000)</code>"
+              exit 1
+            fi
+
             CURRENT_LINE=$(wc -l < /tmp/bot.log)
             if [ "$CURRENT_LINE" -gt "$LAST_LINE" ]; then
               NEW_LINES=$(sed -n "$((LAST_LINE + 1)),${CURRENT_LINE}p" /tmp/bot.log)
@@ -70,8 +80,6 @@ jobs:
               tg_json "💓 <b>Bot still running</b>&#10;Uptime: $UPTIME"
               LAST_PING=$NOW
             fi
-
-            kill -0 $BOT_PID 2>/dev/null || { tg_json "💀 <b>Bot process died!</b>&#10;<code>$(tail -20 /tmp/bot.log)</code>"; exit 1; }
           done
         env:
           GITHUB_ACTIONS: 'true'
@@ -80,3 +88,4 @@ jobs:
           GITHUB_REPO: github-bot-discord
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
