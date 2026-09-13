@@ -6,5 +6,13 @@
     "coins": 700,
     "timestamp": 1789343581582,
     "status": "pending"
+  },
+  "paypal_769891629384728606_1789343632401": {
+    "userId": "769891629384728606",
+    "username": "yutsukii_07",
+    "amount": 2,
+    "coins": 40,
+    "timestamp": 1789343632436,
+    "status": "pending"
   }
 }
