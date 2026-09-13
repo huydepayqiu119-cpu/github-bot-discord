@@ -1,0 +1,82 @@
+name: Run Bot Discord
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+concurrency:
+  group: run-bot
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 700
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: huydepayqiu119-cpu/github-bot-discord
+          token: ${{ secrets.BOTDISCORD }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install > /dev/null 2>&1
+
+      - name: Start bot and stream logs
+        run: |
+          tg_json() {
+            curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"parse_mode\":\"HTML\",\"text\":$(echo "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" > /dev/null 2>&1
+          }
+
+          node bot.js > /tmp/bot.log 2>&1 &
+          BOT_PID=$!
+
+          sleep 10
+
+          if ! kill -0 $BOT_PID 2>/dev/null; then
+            tg_json "❌ <b>Bot failed to start!</b>&#10;<code>$(tail -30 /tmp/bot.log)</code>"
+            exit 1
+          fi
+
+          EARLY_LOG=$(cat /tmp/bot.log | head -c 3000)
+          MSG="🤖 <b>Bot Discord started</b>&#10;⏰ $(date '+%Y-%m-%d %H:%M:%S UTC')&#10;&#10;<code>$EARLY_LOG</code>"
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"parse_mode\":\"HTML\",\"text\":$(echo "$MSG" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" > /dev/null 2>&1
+
+          LAST_LINE=$(wc -l < /tmp/bot.log)
+          LAST_PING=$(date +%s)
+
+          while true; do
+            sleep 10
+
+            CURRENT_LINE=$(wc -l < /tmp/bot.log)
+            if [ "$CURRENT_LINE" -gt "$LAST_LINE" ]; then
+              NEW_LINES=$(sed -n "$((LAST_LINE + 1)),${CURRENT_LINE}p" /tmp/bot.log)
+              LAST_LINE=$CURRENT_LINE
+              tg_json "<code>$(echo "$NEW_LINES" | head -c 3500)</code>"
+            fi
+
+            NOW=$(date +%s)
+            if [ $((NOW - LAST_PING)) -ge 1800 ]; then
+              UPTIME=$(ps -p $BOT_PID -o etime= 2>/dev/null || echo "unknown")
+              tg_json "💓 <b>Bot still running</b>&#10;Uptime: $UPTIME"
+              LAST_PING=$NOW
+            fi
+
+            kill -0 $BOT_PID 2>/dev/null || { tg_json "💀 <b>Bot process died!</b>&#10;<code>$(tail -20 /tmp/bot.log)</code>"; exit 1; }
+          done
+        env:
+          GITHUB_ACTIONS: 'true'
+          GITHUB_TOKEN: ${{ secrets.BOTDISCORD }}
+          GITHUB_OWNER: huydepayqiu119-cpu
+          GITHUB_REPO: github-bot-discord
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
