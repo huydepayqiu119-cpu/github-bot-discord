@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: huydepayqiu119-cpu/github-bot-discord
+          repository: huydepayqiu119-cpu/bot-discord
           token: ${{ secrets.BOTDISCORD }}
           fetch-depth: 0
 
