@@ -35,7 +35,7 @@ jobs:
               -d "{\"chat_id\":\"$TELEGRAM_CHAT_ID\",\"parse_mode\":\"HTML\",\"text\":$(echo "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}" > /dev/null 2>&1
           }
 
-          node bot.js > /tmp/bot.log 2>&1 &
+          node index.js > /tmp/bot.log 2>&1 &
           BOT_PID=$!
 
           sleep 30
