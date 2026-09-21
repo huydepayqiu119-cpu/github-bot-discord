@@ -3,7 +3,7 @@ name: Run Bot Discord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */5 * * *'
+    - cron: '0 0 * * *'
 
 concurrency:
   group: run-bot
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 700
+    timeout-minutes: 320
 
     steps:
       - uses: actions/checkout@v4
@@ -56,9 +56,17 @@ jobs:
 
           LAST_LINE=$(wc -l < /tmp/bot.log)
           LAST_PING=$(date +%s)
+          START_TIME=$(date +%s)
+          MAX_DURATION=$((5 * 60 * 60))
 
           while true; do
             sleep 10
+
+            NOW=$(date +%s)
+            if [ $((NOW - START_TIME)) -ge $MAX_DURATION ]; then
+              tg_json "⏱ <b>5h limit reached, restarting...</b>"
+              break
+            fi
 
             if ! kill -0 $BOT_PID 2>/dev/null; then
               echo "=== BOT DIED - LAST LOG ==="
@@ -74,7 +82,6 @@ jobs:
               tg_json "<code>$(echo "$NEW_LINES" | head -c 3500)</code>"
             fi
 
-            NOW=$(date +%s)
             if [ $((NOW - LAST_PING)) -ge 1800 ]; then
               UPTIME=$(ps -p $BOT_PID -o etime= 2>/dev/null || echo "unknown")
               tg_json "💓 <b>Bot still running</b>&#10;Uptime: $UPTIME"
@@ -88,3 +95,12 @@ jobs:
           GITHUB_REPO: bot-discord
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Trigger next run
+        if: always()
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.BOTDISCORD }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/huydepayqiu119-cpu/github-bot-discord/actions/workflows/run-bot.yml/dispatches \
+            -d '{"ref":"main"}'
