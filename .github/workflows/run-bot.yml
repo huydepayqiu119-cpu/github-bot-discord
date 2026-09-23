@@ -27,6 +27,12 @@ jobs:
 
       - run: npm install
 
+      - name: Install ngrok
+        run: |
+          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null 2>&1
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list >/dev/null
+          sudo apt-get update -qq > /dev/null 2>&1 && sudo apt-get install -y ngrok > /dev/null 2>&1
+
       - name: Start bot and stream logs
         run: |
           tg_json() {
@@ -97,5 +103,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.BOTDISCORD }}
           GITHUB_OWNER: huydepayqiu119-cpu
           GITHUB_REPO: bot-discord
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
