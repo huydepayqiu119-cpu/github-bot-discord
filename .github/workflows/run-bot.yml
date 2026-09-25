@@ -63,7 +63,7 @@ jobs:
           LAST_LINE=$(wc -l < /tmp/bot.log)
           LAST_PING=$(date +%s)
           START_TIME=$(date +%s)
-          MAX_DURATION=$((5 * 60 * 60 + 30 * 60))
+          MAX_DURATION=$((5 * 60 * 60 + 20 * 60))
 
           while true; do
             sleep 10

@@ -1,0 +1,51 @@
+name: Watchdog
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      actions: write
+    steps:
+      - name: Check and trigger run-bot if not running
+        env:
+          GH_TOKEN: ${{ secrets.BOTDISCORD }}
+          OWNER: huydepayqiu119-cpu
+          REPO: github-bot-discord
+          WORKFLOW: run-bot.yml
+        run: |
+          END=$(($(date +%s) + 270))
+          while [ $(date +%s) -lt $END ]; do
+            RUNNING=$(curl -s \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/$WORKFLOW/runs?status=in_progress&per_page=1" \
+              | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('total_count',0))")
+            if [ "$RUNNING" = "0" ]; then
+              curl -s -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github.v3+json" \
+                "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/$WORKFLOW/dispatches" \
+                -d '{"ref":"main"}'
+              echo "Triggered run-bot at $(date)"
+            fi
+            sleep 5
+          done
+
+      - name: Delete this watchdog run
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.BOTDISCORD }}
+          OWNER: huydepayqiu119-cpu
+          REPO: github-bot-discord
+        run: |
+          RUN_ID=${{ github.run_id }}
+          curl -s -X DELETE \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$RUN_ID"
