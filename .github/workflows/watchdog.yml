@@ -5,6 +5,10 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch:
 
+concurrency:
+  group: watchdog
+  cancel-in-progress: true
+
 jobs:
   watch:
     runs-on: ubuntu-latest
@@ -23,6 +27,7 @@ jobs:
           while [ $(date +%s) -lt $END ]; do
             RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/$WORKFLOW/runs?per_page=10")
             RUNNING=$(echo "$RESPONSE" | python3 -c "import json,sys; runs=json.load(sys.stdin).get('workflow_runs',[]); print(sum(1 for r in runs if r['status'] in ('in_progress','queued','waiting','requested','pending')))")
+            echo "[$(date '+%H:%M:%S')] Active runs: $RUNNING"
             if [ "$RUNNING" = "0" ]; then
               curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/$WORKFLOW/dispatches" -d '{"ref":"main"}'
               echo "Triggered run-bot at $(date)"
@@ -30,3 +35,13 @@ jobs:
             fi
             sleep 5
           done
+
+      - name: Retrigger watchdog
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.BOTDISCORD }}
+          OWNER: huydepayqiu119-cpu
+          REPO: github-bot-discord
+        run: |
+          curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/watchdog.yml/dispatches" -d '{"ref":"main"}'
+          echo "Watchdog retriggered at $(date)"
