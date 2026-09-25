@@ -15,6 +15,16 @@ jobs:
     timeout-minutes: 350
 
     steps:
+      - name: Cleanup old run-bot runs
+        env:
+          GH_TOKEN: ${{ secrets.BOTDISCORD }}
+          OWNER: huydepayqiu119-cpu
+          REPO: github-bot-discord
+        run: |
+          curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$OWNER/$REPO/actions/workflows/run-bot.yml/runs?status=completed&per_page=100" | python3 -c "import json,sys; [print(r['id']) for r in json.load(sys.stdin).get('workflow_runs',[])]" | while read id; do
+            curl -s -X DELETE -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$OWNER/$REPO/actions/runs/$id" > /dev/null && echo "Deleted $id"
+          done
+
       - uses: actions/checkout@v4
         with:
           repository: huydepayqiu119-cpu/bot-discord
