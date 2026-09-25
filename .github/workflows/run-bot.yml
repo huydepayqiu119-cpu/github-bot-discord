@@ -70,11 +70,6 @@ jobs:
 
             NOW=$(date +%s)
             if [ $((NOW - START_TIME)) -ge $MAX_DURATION ]; then
-              curl -s -X POST \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                https://api.github.com/repos/huydepayqiu119-cpu/github-bot-discord/actions/workflows/run-bot.yml/dispatches \
-                -d '{"ref":"main"}' > /dev/null 2>&1
               break
             fi
 
